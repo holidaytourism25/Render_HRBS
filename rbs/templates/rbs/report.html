@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">হোটেল বুকিং অ্যানালিটিক্স ও রিপোর্ট</h2>
+        <div>
+            <button onclick="window.print()" class="btn btn-outline-dark btn-sm me-2"><i class="bi bi-printer"></i> Print Report</button>
+            <a href="?{{ request.GET.urlencode }}&download_pdf=1" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf"></i> Download PDF</a>
+        </div>
+    </div>
+
+    <div class="card p-3 border-0 shadow-sm mb-4 bg-light">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="small fw-bold">হোটেল নির্বাচন</label>
+                <select name="hotel" class="form-select form-select-sm">
+                    <option value="">সকল হোটেল</option>
+                    {% for h in hotels %}
+                    <option value="{{ h.id }}">{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="small fw-bold">শুরুর তারিখ</label>
+                <input type="date" name="start_date" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <label class="small fw-bold">শেষের তারিখ</label>
+                <input type="date" name="end_date" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-dark btn-sm w-100">ফিল্টার করুন</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive bg-white shadow-sm rounded-3">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>বুকিং আইডি</th>
+                    <th>হোটেল</th>
+                    <th>গেস্ট নাম</th>
+                    <th>মোবাইল</th>
+                    <th>চেক-ইন</th>
+                    <th>মোট বিল</th>
+                    <th>পেইড (টাইপ)</th>
+                    <th>কমিশন (ব্যাকএন্ড)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td class="fw-bold">{{ b.booking_id }}</td>
+                    <td>{{ b.hotel.name }}</td>
+                    <td>{{ b.guest_name }}</td>
+                    <td>{{ b.mobile }}</td>
+                    <td>{{ b.check_out }}</td>
+                    <td>৳{{ b.total_bill }}</td>
+                    <td>৳{{ b.paid_amount }} ({{ b.payment_type }})</td>
+                    <td class="text-danger fw-bold">৳{{ b.admin_commission }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

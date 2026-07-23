@@ -1,0 +1,257 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Tourism</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Font Family -->
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ১. ব্যাকগ্রাউন্ড ইমেজ সেটআপ */
+        body {
+            background: linear-gradient(rgba(255,255,255,0.7), rgba(255,255,255,0.7)), 
+                        url("{% static 'htg/images/Belabhumi_hero.jpeg'%}");
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ২. টাইটেল বার (লগো সহ সবার উপরে) */
+        .title-bar {
+            background-color: rgba(0, 0, 139, 0.3);
+            color: white;
+            font-family: 'Playfair Display', serif;
+            padding: 30px 50px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .title-bar img { 
+            width: 100px; /* লোগোর সাইজ এখান থেকে নিয়ন্ত্রণ করুন */
+            height: auto;
+            margin-right: 5px;
+            object-fit: contain;
+        }
+        .title-bar h1 { margin: 0; font-size: 56px; font-weight: bold; letter-spacing: 2px; }
+
+        /* ৩. দ্বিতীয় লাইনে কন্টাক্ট মেনু (রাইট অ্যালাইন) */
+        .contact-row {
+            margin-top: -5px; /* টাইটেল বারের সাথে কিছুটা ওভারল্যাপ করার জন্য */
+            z-index: 10;
+            position: relative;
+        }
+
+        .contact-container {
+            background-color: white;
+            padding: 12px 30px;
+            border-radius: 8px; /* ইমেজের মতো হালকা রাউন্ডেড */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: flex-end; /* টেক্সট রাইট অ্যালাইন */
+            align-items: center;
+            gap: 40px;
+            max-width: 94%; /* বারটি যেন দুই পাশে কিছুটা জায়গা ছাড়ে */
+            margin: 0 auto; /* বারটিকে স্ক্রিনের মাঝখানে আনবে */
+        }
+
+        .contact-container a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .contact-container i {
+            color: #0056b3;
+            font-size: 20px;
+            margin-left: 8px; /* টেক্সটের ডানে আইকন (ইমেজ অনুযায়ী) */
+        }
+
+        /* সাইডবার মেনু আইকন এলাইনমেন্ট (ইমেজ অনুযায়ী নীল রঙের এক্টিভ বার) */
+        .sidebar ul li a.active {
+            background-color: #1a1e23;
+            color: white;
+            border-left: 6px solid #00d2ff; 
+        }
+
+        /* ৪. সাইডবার ও কার্ড সেকশন */
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            padding: 20px 50px;
+            gap: 20px;
+        }
+
+        /* সাইডবার ডিজাইন */
+        .sidebar {
+            width: 250px;
+            background-color: rgba(17, 24, 39, 0.95);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar ul li a {
+            display: block;
+            padding: 15px 20px;
+            color: #ccc;
+            text-decoration: none;
+            border-bottom: 1px solid #2d3748;
+        }
+        .sidebar ul li a:hover, .sidebar ul li a.active {
+            background-color: #2d3748;
+            color: white;
+            border-left: 5px solid #00a8ff;
+        }
+
+        /* ৫. কার্ড ডিজাইন */
+        .main-content { flex: 1; }
+        .tour-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            height: 100%;
+            text-align: center;
+            padding-bottom: 15px;
+        }
+        .card-img-box { height: 180px; overflow: hidden; }
+        .card-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .card-title { font-weight: bold; padding: 10px; margin: 0; }
+        .card-btn {
+            background-color: #002b5c;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+        }
+
+        /* ৬. ফুটার ডিজাইন */
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        /* ৭. মোবাইল রেসপনসিভ ও টগল মেনু */
+        .menu-toggle {
+            display: none;
+            background: #002b5c;
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            text-align: left;
+        }
+
+        @media (max-width: 992px) {
+            .content-wrapper { flex-direction: column; padding: 10px; }
+            .sidebar { width: 100%; display: none; } /* ডিফল্ট হাইড */
+            .sidebar.active { display: block; } /* টগল করলে শো */
+            .menu-toggle { display: block; }
+            .contact-bar { justify-content: center; padding: 10px; gap: 15px; }
+            .title-bar { padding: 15px; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- টাইটেল বার (ফুল রো) -->
+    <div class="title-bar">
+        <img src="{% static 'htg/images/logo.png' %}" alt="Logo">
+        <i class="fa-solid fa-mountain-sun fa-2x me-3"></i>
+        <h1>HOLIDAY TOURISM</h1>
+    </div>
+
+    <!-- কন্টাক্ট বার সেকশন (সেন্টারড বার উইথ রাইট অ্যালাইন টেক্সট) -->
+    <div class="container-fluid contact-row">
+        <div class="contact-container">
+            <a href="#">Address <i class="fa-solid fa-location-dot"></i></a>
+            <a href="#">Contact Us 
+                <i class="fa-solid fa-phone ms-2"></i> 
+                <i class="fa-solid fa-envelope ms-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- মোবাইল মেনু টগলার -->
+    <button class="menu-toggle" onclick="toggleMenu()">
+        <i class="fa-solid fa-bars"></i> Show/Hide Menu
+    </button>
+
+    <div class="content-wrapper">
+        <!-- সাইডবার মেনু -->
+        <aside class="sidebar" id="sidebar">
+            <ul>
+                <li><a href="#" class="active">Home</a></li>
+                <li><a href="{% url 'hotel_list' %}">Hotel & Resort</a></li>
+                <li><a href="#">Ship Ticket</a></li>
+                <li><a href="#">Transport</a></li>
+                <li><a href="#">About us</a></li>
+            </ul>
+        </aside>
+
+        <!-- মেইন বডি কার্ডস -->
+        <main class="main-content">
+            <div class="row g-4">
+                <!-- Card 1 -->
+                <div class="col-md-4">
+                    <div class="tour-card">
+                        <div class="card-img-box"><img src="{% static 'htg/images/belabhumi.jpeg'%}?w=500" alt="Logo" alt=""></div>
+                        <p class="card-title">Belabhumi Resort & Villa</p>
+                        <p class="small text-muted px-2">Luxurious beach villas & pool</p>
+                        <p class="fw-bold text-primary">Price 590 ★★★★★</p>
+                        <button class="card-btn" onclick="window.location.href='{% url 'hotel_list' %}'">Book Now</button>
+                    </div>
+                </div>
+                <!-- Card 2 -->
+                <div class="col-md-4">
+                    <div class="tour-card">
+                        <div class="card-img-box"><img src="{% static 'htg/images/Salmon_01.jpeg' %}?w=500" alt="Logo" alt=""></div>
+                        <p class="card-title">Salmon Restaurant</p>
+                        <p class="small text-muted px-2">Delicious seafood specialty</p>
+                        <br>
+                        <button class="card-btn">View Menu</button>
+                    </div>
+                </div>
+                <!-- Card 3 -->
+                <div class="col-md-4">
+                    <div class="tour-card">
+                        <div class="card-img-box"><img src="{% static 'htg/images/Salmon.jpeg' %}?w=500" alt="Logo" alt=""></div>
+                        <p class="card-title">Gulf Convention Hall</p>
+                        <p class="small text-muted px-2">Modern event and more</p>
+                        <br>
+                        <button class="card-btn">Host Events</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ফুটার -->
+    <footer>
+        All right reserved@ Holiday Tourism Group. Developed by CodeKarigor
+    </footer>
+
+    <!-- JavaScript for Toggle Menu -->
+    <script>
+        function toggleMenu() {
+            var sidebar = document.getElementById("sidebar");
+            sidebar.classList.toggle("active");
+        }
+    </script>
+</body>
+</html>

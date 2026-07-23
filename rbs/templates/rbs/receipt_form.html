@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-0 p-4">
+            <h4 class="text-center text-success mb-4">পেমেন্ট সফল হয়েছে!</h4>
+            <p class="text-center">রিসিট জেনারেট করতে আপনার ঠিকানা প্রদান করুন।</p>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">বর্তমান ঠিকানা</label>
+                    <textarea name="present_address" class="form-control" rows="2" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">স্থায়ী ঠিকানা</label>
+                    <textarea name="permanent_address" class="form-control" rows="2" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-dark w-100">রিসিট ডাউনলোড করুন</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

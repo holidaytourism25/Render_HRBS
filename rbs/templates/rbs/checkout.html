@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {{ request.resolver_match.url_name|title }}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white p-3 text-center">
+                <h4 class="mb-0 fw-bold">বুকিং সম্পন্ন করুন</h4>
+            </div>
+            <div class="card-body p-4">
+                
+                <h5 class="fw-bold mb-3">নির্বাচিত রুমসমূহ:</h5>
+                <ul class="list-group mb-4">
+                    {% for item in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div>
+                            <span class="fw-bold text-dark">{{ item.room.room_type }}</span> 
+                            <span class="text-muted small">({{ item.room.hotel.name }})</span>
+                            <span class="badge bg-secondary ms-2">{{ item.quantity }} টি রুম</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="fw-bold text-primary">৳{{ item.total }}</span>
+                            <a href="{% url 'remove_from_cart' item.room.id %}" class="btn btn-outline-danger btn-sm rounded-circle" title="কার্ট থেকে বাদ দিন">
+                                <i class="bi bi-trash3-fill"></i>
+                            </a>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% comment %} <ul class="list-group mb-3">
+                    {% for item in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-3">
+                        <div>
+                            <span class="fw-bold text-dark">{{ item.room.room_type }}</span> 
+                            <span class="text-muted small">({{ item.room.hotel.name }})</span>
+                            <span class="badge bg-secondary ms-2">{{ item.quantity }} টি রুম</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="fw-bold text-primary">৳{{ item.total }}</span>
+                            <a href="{% url 'remove_from_cart' item.room.id %}" class="btn btn-outline-danger btn-sm rounded-circle" title="কার্ট থেকে বাদ দিন">
+                                <i class="bi bi-trash3-fill"></i>
+                            </a>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul> {% endcomment %}
+
+                <div class="d-flex justify-content-start mb-4">
+                    {% if cart_items %}
+                        <a href="{% url 'hotel_detail' cart_items.0.room.hotel.id %}" class="btn btn-outline-primary btn-sm rounded-pill fw-bold">
+                            <i class="bi bi-plus-circle-fill me-1"></i> আরও রুম যোগ করুন (Add More)
+                        </a>
+                    {% else %}
+                        <a href="{% url 'hotel_list' %}" class="btn btn-outline-primary btn-sm rounded-pill fw-bold">
+                            <i class="bi bi-arrow-left me-1"></i> হোটেল লিস্টে ফিরে যান
+                        </a>
+                    {% endif %}
+                </div>
+
+                <h4 class="text-end text-danger fw-bold mb-4">মোট বিল: ৳{{ total_price }}</h4>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">পেমেন্ট মেথড সিলেক্ট করুন</label>
+                        <select name="payment_type" class="form-select" required>
+                            <option value="Full">Full Payment (১০০% পরিশোধ - ৳{{ total_price }})</option>
+                            <option value="Partial">Partial Payment (৫০% অগ্রিম পরিশোধ)</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">আপনার সম্পূর্ণ নাম</label>
+                            <input type="text" name="name" class="form-control" placeholder="নাম লিখুন" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">মোবাইল নম্বর</label>
+                            <input type="text" name="mobile" class="form-control" placeholder="01XXXXXXXXX" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100 shadow mt-3 fw-bold">পেমেন্ট পোর্টালে যান</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% comment %} {% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-primary text-white p-3 text-center">
+                <h4 class="mb-0">বুকিং সম্পন্ন করুন</h4>
+            </div>
+            <div class="card-body p-4">
+                <h5>নির্বাচিত রুমসমূহ:</h5>
+                <ul class="list-group mb-4">
+                    {% for room in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ room.room_type }} ({{ room.hotel.name }})
+                        <span class="badge bg-secondary rounded-pill">৳{{ room.price }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                <h4 class="text-end text-danger mb-4">মোট বিল: ৳{{ total_price }}</h4>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">আপনার নাম</label>
+                            <input type="text" name="name" class="form-control" required placeholder="নাম লিখুন">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">মোবাইল নম্বর</label>
+                            <input type="text" name="mobile" class="form-control" required placeholder="017XXXXXXXX">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">অগ্রিম পেমেন্টের পরিমাণ (৳)</label>
+                            <input type="number" name="amount" class="form-control" placeholder="মিনিমাম ৫০০ টাকা">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100 shadow mt-3">পেমেন্ট পোর্টালে যান</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% endcomment %}
