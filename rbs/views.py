@@ -1,16 +1,20 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from .models import Hotel, Room, Booking
-from django.contrib import messages
+from decimal import Decimal
 from datetime import datetime, timedelta
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.utils.timezone import localdate, now
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa 
 
+from .models import Hotel, Room, Booking
+
+
 # ১. হোম পেজ (হোটেল লিস্ট)
 def hotel_list(request):
     hotels = Hotel.objects.all()
     return render(request, 'rbs/index.html', {'hotels': hotels})
+
 
 # ২. hotel_detail ভিউ (৩০ দিনের ক্যালেন্ডারসহ)
 def hotel_detail(request, hotel_id):
@@ -42,23 +46,30 @@ def hotel_detail(request, hotel_id):
         room.calendar = calendar_data
 
         if check_in_str and check_out_str:
-            check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
-            check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
-            
-            max_booked = 0
-            current_day = check_in
-            while current_day < check_out:
-                day_booked = Booking.objects.filter(
-                    rooms=room,
-                    status='Confirmed',
-                    check_in__lte=current_day,
-                    check_out__gt=current_day
-                ).count()
-                if day_booked > max_booked:
-                    max_booked = day_booked
-                current_day += timedelta(days=1)
+            try:
+                check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
+                check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
                 
-            room.available_count = max(0, room.total_inventory - max_booked)
+                # সেশনে চেক-ইন/আউট ডেট সেভ রাখা যাতে চেকআউটে কাজে লাগে
+                request.session['check_in'] = check_in_str
+                request.session['check_out'] = check_out_str
+                
+                max_booked = 0
+                current_day = check_in
+                while current_day < check_out:
+                    day_booked = Booking.objects.filter(
+                        rooms=room,
+                        status='Confirmed',
+                        check_in__lte=current_day,
+                        check_out__gt=current_day
+                    ).count()
+                    if day_booked > max_booked:
+                        max_booked = day_booked
+                    current_day += timedelta(days=1)
+                    
+                room.available_count = max(0, room.total_inventory - max_booked)
+            except ValueError:
+                room.available_count = room.total_inventory
         else:
             room.available_count = room.total_inventory
 
@@ -68,6 +79,7 @@ def hotel_detail(request, hotel_id):
         'next_30_days': next_30_days
     })
 
+
 # ৩. কার্টে রুম যোগ করা
 def add_to_cart(request, room_id):
     if 'cart' not in request.session:
@@ -76,10 +88,8 @@ def add_to_cart(request, room_id):
     cart = request.session['cart']
     quantity = int(request.POST.get('quantity', 1))
     
-    # নতুন আইটেম ডিকশনারি আকারে তৈরি
     item = {'room_id': int(room_id), 'quantity': quantity}
     
-    # সেশনে কোনো ভুল ডেটা টাইপ বা সংখ্যা থাকলে তা ফিল্টার করে বাদ দেওয়া এবং ডুপ্লিকেট রোধ করা
     clean_cart = []
     for i in cart:
         if isinstance(i, dict) and 'room_id' in i:
@@ -91,13 +101,15 @@ def add_to_cart(request, room_id):
     
     return redirect('checkout')
 
-# ৪. কার্ট থেকে রুম মুছে ফেলা (রিমুভ অপশন)
+
+# ৪. কার্ট থেকে রুম মুছে ফেলা
 def remove_from_cart(request, room_id):
     cart = request.session.get('cart', [])
-    updated_cart = [item for item in cart if int(item['room_id']) != int(room_id)]
+    updated_cart = [item for item in cart if isinstance(item, dict) and int(item.get('room_id', 0)) != int(room_id)]
     request.session['cart'] = updated_cart
     messages.success(request, "রুমটি কার্ট থেকে বাদ দেওয়া হয়েছে।")
     return redirect('checkout')
+
 
 # ৫. চেকআউট ও পেমেন্ট টাইপ নির্ধারণ
 def checkout(request):
@@ -107,7 +119,7 @@ def checkout(request):
         return redirect('hotel_list')
         
     cart_items = []
-    total_price = 0
+    total_price = Decimal('0.00')
     
     for item in cart:
         room = get_object_or_404(Room, id=item['room_id'])
@@ -122,15 +134,21 @@ def checkout(request):
         
         paid_amount = total_price
         if payment_type == 'Partial':
-            paid_amount = total_price / 2
+            paid_amount = total_price / Decimal('2.0')
             
+        check_in_str = request.session.get('check_in', str(localdate()))
+        check_out_str = request.session.get('check_out', str(localdate() + timedelta(days=1)))
+        
         booking = Booking.objects.create(
             hotel=cart_items[0]['room'].hotel,
             guest_name=name,
             mobile=mobile,
+            check_in=check_in_str,
+            check_out=check_out_str,
             total_bill=total_price,
             paid_amount=paid_amount,
-            payment_type=payment_type
+            payment_type=payment_type,
+            room_count=sum(item['quantity'] for item in cart_items)
         )
         for item in cart_items:
             booking.rooms.add(item['room'])
@@ -143,6 +161,7 @@ def checkout(request):
         'total_price': total_price
     })
 
+
 # ৬. রিসিট ফরম
 def receipt_form(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
@@ -152,7 +171,8 @@ def receipt_form(request, booking_id):
         return render(request, 'rbs/receipt_final.html', {'booking': booking})
     return render(request, 'rbs/receipt_form.html', {'booking': booking})
 
-# ৭. বুকিং ট্র্যাকিং ভিউ (যা মিসিং হওয়ার কারণে এরর আসছিল)
+
+# ৭. বুকিং ট্র্যাকিং ভিউ
 def track_booking(request):
     if request.method == 'POST':
         mobile = request.POST.get('mobile')
@@ -162,6 +182,7 @@ def track_booking(request):
         else:
             messages.error(request, "এই নম্বরে কোনো বুকিং পাওয়া যায়নি।")
     return render(request, 'rbs/track_form.html')
+
 
 # ৮. ম্যানেজার ও সুপার অ্যাডমিন রিপোর্ট মডিউল
 def booking_report(request):
