@@ -12,7 +12,7 @@ urlpatterns = [
     path('add-to-cart/<int:room_id>/', views.add_to_cart, name='add_to_cart'),
     
     # ৪. কার্ট থেকে রুম মুছে ফেলা (নতুন যুক্ত করা হয়েছে)
-    path('remove-from-cart/<int:room_id>/', views.remove_from_cart, name='remove_from_cart'),
+    path('remove-from-cart/<int:index>/', views.remove_from_cart, name='remove_from_cart'),
     
     # ৫. চেকআউট ও পেমেন্ট টাইপ নির্ধারণ
     path('checkout/', views.checkout, name='checkout'),

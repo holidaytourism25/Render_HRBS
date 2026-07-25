@@ -10,13 +10,13 @@ from xhtml2pdf import pisa
 from .models import Hotel, Room, Booking
 
 
-# ১. হোম পেজ (হোটেল লিস্ট)
+# 1. Home Page (Hotel List)
 def hotel_list(request):
     hotels = Hotel.objects.all()
     return render(request, 'rbs/index.html', {'hotels': hotels})
 
 
-# ২. hotel_detail ভিউ (৩০ দিনের ক্যালেন্ডারসহ)
+# 2. Hotel Detail View (with Interactive 30-Day Calendar)
 def hotel_detail(request, hotel_id):
     hotel = get_object_or_404(Hotel, id=hotel_id)
     rooms = hotel.rooms.all()
@@ -40,6 +40,7 @@ def hotel_detail(request, hotel_id):
             rem_inventory = room.total_inventory - booked_on_day
             calendar_data.append({
                 'date': day,
+                'date_str': day.strftime('%Y-%m-%d'),
                 'available_count': max(0, rem_inventory),
                 'is_full': rem_inventory <= 0
             })
@@ -50,7 +51,6 @@ def hotel_detail(request, hotel_id):
                 check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
                 check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
                 
-                # সেশনে চেক-ইন/আউট ডেট সেভ রাখা যাতে চেকআউটে কাজে লাগে
                 request.session['check_in'] = check_in_str
                 request.session['check_out'] = check_out_str
                 
@@ -80,42 +80,69 @@ def hotel_detail(request, hotel_id):
     })
 
 
-# ৩. কার্টে রুম যোগ করা
+# 3. Add to Cart View (Fixed Overwrite and Date Processing)
 def add_to_cart(request, room_id):
-    if 'cart' not in request.session:
-        request.session['cart'] = []
-    
-    cart = request.session['cart']
-    quantity = int(request.POST.get('quantity', 1))
-    
-    item = {'room_id': int(room_id), 'quantity': quantity}
-    
-    clean_cart = []
-    for i in cart:
-        if isinstance(i, dict) and 'room_id' in i:
-            if int(i['room_id']) != int(room_id):
-                clean_cart.append(i)
-                
-    clean_cart.append(item)
-    request.session['cart'] = clean_cart
-    
-    return redirect('checkout')
+    if request.method == 'POST':
+        room = get_object_or_404(Room, id=room_id)
+        
+        quantity = int(request.POST.get('quantity', 1))
+        check_in_str = request.POST.get('check_in')
+        check_out_str = request.POST.get('check_out')
+
+        # Fallback to session or today if inputs are empty
+        if not check_in_str:
+            check_in_str = request.session.get('check_in', str(localdate()))
+        if not check_out_str:
+            check_out_str = request.session.get('check_out', str(localdate() + timedelta(days=1)))
+
+        # Calculate nights
+        try:
+            d1 = datetime.strptime(check_in_str, '%Y-%m-%d').date()
+            d2 = datetime.strptime(check_out_str, '%Y-%m-%d').date()
+            nights = (d2 - d1).days
+            if nights <= 0:
+                nights = 1
+        except ValueError:
+            nights = 1
+
+        cart = request.session.get('cart', [])
+
+        # Construct cart item with complete parameters
+        item = {
+            'room_id': int(room_id),
+            'quantity': quantity,
+            'check_in': check_in_str,
+            'check_out': check_out_str,
+            'nights': nights
+        }
+
+        # Append instead of replacing previous entries of the same room
+        cart.append(item)
+        request.session['cart'] = cart
+        request.session.modified = True
+
+        messages.success(request, "Room added to cart successfully!")
+        return redirect('checkout')
+
+    return redirect('hotel_list')
 
 
-# ৪. কার্ট থেকে রুম মুছে ফেলা
-def remove_from_cart(request, room_id):
+# 4. Remove from Cart View (Index-based Deletion)
+def remove_from_cart(request, index):
     cart = request.session.get('cart', [])
-    updated_cart = [item for item in cart if isinstance(item, dict) and int(item.get('room_id', 0)) != int(room_id)]
-    request.session['cart'] = updated_cart
-    messages.success(request, "রুমটি কার্ট থেকে বাদ দেওয়া হয়েছে।")
+    if 0 <= index < len(cart):
+        cart.pop(index)
+        request.session['cart'] = cart
+        request.session.modified = True
+        messages.success(request, "Item removed from cart.")
     return redirect('checkout')
 
 
-# ৫. চেকআউট ও পেমেন্ট টাইপ নির্ধারণ
+# 5. Checkout View
 def checkout(request):
     cart = request.session.get('cart', [])
     if not cart:
-        messages.warning(request, "আপনার কার্ট খালি।")
+        messages.warning(request, "Your cart is empty.")
         return redirect('hotel_list')
         
     cart_items = []
@@ -123,9 +150,20 @@ def checkout(request):
     
     for item in cart:
         room = get_object_or_404(Room, id=item['room_id'])
-        item_total = room.price * item['quantity']
+        quantity = item.get('quantity', 1)
+        nights = item.get('nights', 1)
+        
+        item_total = Decimal(str(room.price)) * Decimal(str(quantity)) * Decimal(str(nights))
         total_price += item_total
-        cart_items.append({'room': room, 'quantity': item['quantity'], 'total': item_total})
+
+        cart_items.append({
+            'room': room, 
+            'quantity': quantity, 
+            'check_in': item.get('check_in', ''),
+            'check_out': item.get('check_out', ''),
+            'nights': nights,
+            'total': item_total
+        })
 
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -136,15 +174,15 @@ def checkout(request):
         if payment_type == 'Partial':
             paid_amount = total_price / Decimal('2.0')
             
-        check_in_str = request.session.get('check_in', str(localdate()))
-        check_out_str = request.session.get('check_out', str(localdate() + timedelta(days=1)))
+        first_item_check_in = cart_items[0]['check_in'] if cart_items else str(localdate())
+        first_item_check_out = cart_items[0]['check_out'] if cart_items else str(localdate() + timedelta(days=1))
         
         booking = Booking.objects.create(
             hotel=cart_items[0]['room'].hotel,
             guest_name=name,
             mobile=mobile,
-            check_in=check_in_str,
-            check_out=check_out_str,
+            check_in=first_item_check_in,
+            check_out=first_item_check_out,
             total_bill=total_price,
             paid_amount=paid_amount,
             payment_type=payment_type,
@@ -162,7 +200,7 @@ def checkout(request):
     })
 
 
-# ৬. রিসিট ফরম
+# 6. Receipt Form View
 def receipt_form(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
     if request.method == 'POST':
@@ -172,7 +210,7 @@ def receipt_form(request, booking_id):
     return render(request, 'rbs/receipt_form.html', {'booking': booking})
 
 
-# ৭. বুকিং ট্র্যাকিং ভিউ
+# 7. Track Booking View
 def track_booking(request):
     if request.method == 'POST':
         mobile = request.POST.get('mobile')
@@ -180,11 +218,11 @@ def track_booking(request):
         if bookings.exists():
             return render(request, 'rbs/track_results.html', {'bookings': bookings})
         else:
-            messages.error(request, "এই নম্বরে কোনো বুকিং পাওয়া যায়নি।")
+            messages.error(request, "No booking found with this mobile number.")
     return render(request, 'rbs/track_form.html')
 
 
-# ৮. ম্যানেজার ও সুপার অ্যাডমিন রিপোর্ট মডিউল
+# 8. Booking Report View
 def booking_report(request):
     user = request.user
     if user.is_superuser:
@@ -209,7 +247,7 @@ def booking_report(request):
         response['Content-Disposition'] = 'attachment; filename="booking_report.pdf"'
         pisa_status = pisa.CreatePDF(html, dest=response)
         if pisa_status.err:
-            return HttpResponse('PDF তৈরি করতে সমস্যা হয়েছে', status=500)
+            return HttpResponse('Error generating PDF', status=500)
         return response
 
     return render(request, 'rbs/report.html', {'bookings': bookings, 'hotels': hotels})
