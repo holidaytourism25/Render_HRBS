@@ -1,0 +1,41 @@
+{% extends "finance/base_report.html" %}
+{% block title %}Revenue{% endblock %}
+{% block content %}
+    <h1>Revenue Report</h1>
+    <p class="subtitle">Payments received, grouped by method.</p>
+
+    <form class="filter-bar" method="get">
+        <div><label>Start date</label>{{ form.start_date }}</div>
+        <div><label>End date</label>{{ form.end_date }}</div>
+        <button type="submit">Apply</button>
+        <button type="button" class="no-print" onclick="window.print()">Print</button>
+    </form>
+
+    <div class="card-row">
+        <div class="card"><div class="label">Total Revenue</div><div class="value">{{ grand_total }}</div></div>
+        {% for m in by_method %}
+            <div class="card"><div class="label">{{ m.method }}</div><div class="value">{{ m.total }}</div></div>
+        {% endfor %}
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Invoice</th><th>Guest</th><th>Method</th><th>Reference</th>
+                <th class="text-right">Amount</th></tr>
+        </thead>
+        <tbody>
+        {% for p in payments %}
+            <tr>
+                <td>{{ p.payment_date }}</td>
+                <td>{{ p.invoice.invoice_number }}</td>
+                <td>{{ p.invoice.guest_name }}</td>
+                <td>{{ p.get_method_display }}</td>
+                <td>{{ p.reference_no }}</td>
+                <td class="text-right">{{ p.amount }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="empty">No payments in this range.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

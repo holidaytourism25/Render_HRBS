@@ -1,0 +1,36 @@
+{% extends "finance/base_report.html" %}
+{% block title %}Financial Summary{% endblock %}
+{% block content %}
+    <h1>Financial Summary Report</h1>
+    <p class="subtitle">Account balances grouped by type{% if end_date %} as of {{ end_date }}{% endif %}.</p>
+
+    <form class="filter-bar" method="get">
+        <div><label>Start date</label>{{ form.start_date }}</div>
+        <div><label>As of (end) date</label>{{ form.end_date }}</div>
+        <button type="submit">Apply</button>
+        <button type="button" class="no-print" onclick="window.print()">Print</button>
+    </form>
+
+    {% for row in rows %}
+        <h2 style="font-size:14px; margin: 20px 0 6px;">{{ row.type_label }}</h2>
+        <table>
+            <thead><tr><th>Code</th><th>Account</th><th class="text-right">Balance</th></tr></thead>
+            <tbody>
+            {% for r in row.accounts %}
+                <tr>
+                    <td>{{ r.account.code }}</td>
+                    <td>{{ r.account.name }}</td>
+                    <td class="text-right">{{ r.balance }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3" class="empty">No accounts of this type.</td></tr>
+            {% endfor %}
+            <tr class="totals-row"><td colspan="2">Subtotal</td><td class="text-right">{{ row.type_total }}</td></tr>
+            </tbody>
+        </table>
+    {% endfor %}
+
+    <div class="card-row" style="margin-top:20px;">
+        <div class="card"><div class="label">Grand Total</div><div class="value">{{ grand_total }}</div></div>
+    </div>
+{% endblock %}

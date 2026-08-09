@@ -1,0 +1,44 @@
+{% extends "finance/base_report.html" %}
+{% block title %}General Ledger{% endblock %}
+{% block content %}
+    <h1>General Ledger Report</h1>
+    <p class="subtitle">{% if account %}{{ account.code }} - {{ account.name }}{% else %}No accounts found.{% endif %}</p>
+
+    <form class="filter-bar" method="get" action="{% if account %}{% url 'finance:ledger_for_account' account.id %}{% else %}{% url 'finance:ledger' %}{% endif %}">
+        <div>
+            <label>Account</label>
+            <select onchange="location.href = this.value">
+                {% for a in accounts %}
+                    <option value="{% url 'finance:ledger_for_account' a.id %}" {% if account and a.id == account.id %}selected{% endif %}>
+                        {{ a.code }} - {{ a.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div><label>Start date</label>{{ form.start_date }}</div>
+        <div><label>End date</label>{{ form.end_date }}</div>
+        <button type="submit">Apply</button>
+        <button type="button" class="no-print" onclick="window.print()">Print</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Description</th><th>Reference</th><th>Type</th>
+                <th class="text-right">Amount</th><th class="text-right">Running Balance</th></tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+            <tr>
+                <td>{{ r.txn.date }}</td>
+                <td>{{ r.txn.description }}</td>
+                <td>{{ r.txn.reference }}</td>
+                <td>{{ r.txn.get_transaction_type_display }}</td>
+                <td class="text-right">{{ r.txn.amount }}</td>
+                <td class="text-right">{{ r.running_balance }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="empty">No transactions in this range.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

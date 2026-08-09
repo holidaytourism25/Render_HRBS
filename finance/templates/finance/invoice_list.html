@@ -1,0 +1,53 @@
+{% extends "finance/base_report.html" %}
+{% block title %}Invoices{% endblock %}
+{% block content %}
+    <h1>Invoice Report</h1>
+    <p class="subtitle">Guest invoices with billed, paid and outstanding totals.</p>
+
+    <form class="filter-bar" method="get">
+        <div><label>Start date</label>{{ form.start_date }}</div>
+        <div><label>End date</label>{{ form.end_date }}</div>
+        <div>
+            <label>Status</label>
+            <select name="status">
+                <option value="">All</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Apply</button>
+        <button type="button" class="no-print" onclick="window.print()">Print</button>
+    </form>
+
+    <div class="card-row">
+        <div class="card"><div class="label">Total Billed</div><div class="value">{{ total_billed }}</div></div>
+        <div class="card"><div class="label">Total Paid</div><div class="value">{{ total_paid }}</div></div>
+        <div class="card"><div class="label">Outstanding</div><div class="value">{{ total_outstanding }}</div></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Invoice #</th><th>Guest</th><th>Room</th><th>Issue Date</th><th>Due Date</th>
+                <th class="text-right">Total</th><th class="text-right">Paid</th>
+                <th class="text-right">Balance</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for inv in invoices %}
+            <tr>
+                <td>{{ inv.invoice_number }}</td>
+                <td>{{ inv.guest_name }}</td>
+                <td>{{ inv.room_number }}</td>
+                <td>{{ inv.issue_date }}</td>
+                <td>{{ inv.due_date }}</td>
+                <td class="text-right">{{ inv.total }}</td>
+                <td class="text-right">{{ inv.total_paid }}</td>
+                <td class="text-right">{{ inv.balance_due }}</td>
+                <td><span class="badge badge-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="9" class="empty">No invoices in this range.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "finance/base_report.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+    <h1>Finance Dashboard</h1>
+    <p class="subtitle">Overview of accounts, invoices and revenue.</p>
+
+    <div class="card-row">
+        <div class="card"><div class="label">Active Accounts</div><div class="value">{{ total_accounts }}</div></div>
+        <div class="card"><div class="label">Total Invoices</div><div class="value">{{ total_invoices }}</div></div>
+        <div class="card"><div class="label">Outstanding Invoices</div><div class="value">{{ outstanding_invoices }}</div></div>
+        <div class="card"><div class="label">Total Revenue</div><div class="value">{{ total_revenue }}</div></div>
+    </div>
+
+    <h1 style="font-size:16px;">Reports</h1>
+    <table>
+        <tr><td><a href="{% url 'finance:financial_summary' %}">Financial Summary Report</a></td>
+            <td>Balances grouped by asset / liability / income / expense / equity.</td></tr>
+        <tr><td><a href="{% url 'finance:ledger' %}">General Ledger Report</a></td>
+            <td>Transaction-level detail with running balance, per account.</td></tr>
+        <tr><td><a href="{% url 'finance:invoice_list' %}">Invoice Report</a></td>
+            <td>Filterable list of invoices with billed / paid / outstanding totals.</td></tr>
+        <tr><td><a href="{% url 'finance:revenue' %}">Revenue Report</a></td>
+            <td>Payments received, grouped by payment method, over a date range.</td></tr>
+    </table>
+{% endblock %}

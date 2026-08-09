@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "django>=5.2.13",
+    "django-auditlog>=3.4.1",
     "django-on-heroku>=1.1.2",
     "gunicorn>=26.0.0",
     "pillow>=12.3.0",

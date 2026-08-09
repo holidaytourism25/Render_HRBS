@@ -1,0 +1,36 @@
+{% extends "finance/base_report.html" %}
+{% block title %}Account Statement{% endblock %}
+{% block content %}
+    <h1>Account Statement</h1>
+    <p class="subtitle">{{ account.code }} - {{ account.name }} ({{ account.get_account_type_display }})</p>
+
+    <form class="filter-bar" method="get">
+        <div><label>Start date</label>{{ form.start_date }}</div>
+        <div><label>End date</label>{{ form.end_date }}</div>
+        <button type="submit">Apply</button>
+        <button type="button" class="no-print" onclick="window.print()">Print</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Description</th><th>Reference</th><th>Type</th>
+                <th class="text-right">Amount</th><th class="text-right">Balance</th></tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="5">Opening Balance</td><td class="text-right">{{ account.opening_balance }}</td></tr>
+        {% for r in rows %}
+            <tr>
+                <td>{{ r.txn.date }}</td>
+                <td>{{ r.txn.description }}</td>
+                <td>{{ r.txn.reference }}</td>
+                <td>{{ r.txn.get_transaction_type_display }}</td>
+                <td class="text-right">{{ r.txn.amount }}</td>
+                <td class="text-right">{{ r.running_balance }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="empty">No transactions in this range.</td></tr>
+        {% endfor %}
+            <tr class="totals-row"><td colspan="5">Closing Balance</td><td class="text-right">{{ closing_balance }}</td></tr>
+        </tbody>
+    </table>
+{% endblock %}
