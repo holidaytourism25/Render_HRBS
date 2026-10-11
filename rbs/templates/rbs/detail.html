@@ -81,7 +81,7 @@
                                     Available: {{ room.available_count }} Rooms
                                 </span>
                                 
-                                <form action="{% url 'add_to_cart' room.id %}" method="POST" class="row g-2 align-items-center" id="cartForm{{ room.id }}">
+                                <form action="{% url 'rbs:add_to_cart' room.id %}" method="POST" class="row g-2 align-items-center" id="cartForm{{ room.id }}">
                                     {% csrf_token %}
                                     
                                     <!-- Hidden Inputs for selected dates -->

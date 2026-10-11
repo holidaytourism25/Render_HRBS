@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Booking List & Management</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-dark btn-sm">← Back to Dashboard</a>
+    </div>
+
+    <div class="card p-3 shadow-sm mb-4 bg-light">
+        <form method="GET" class="row g-3 align-items-end">
+            <!-- Hotel Select -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Hotel</label>
+                <select name="hotel" class="form-select">
+                    <option value="">All Hotels</option>
+                    {% for h in hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel_id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Date Filter -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Check-In Date</label>
+                <input type="date" name="date" class="form-control" value="{{ filter_date }}">
+            </div>
+
+            <!-- ✅ Mobile Filter Field -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Mobile Number</label>
+                <input type="text" name="mobile" class="form-control" placeholder="Search by mobile..." value="{{ filter_mobile }}">
+            </div>
+
+            <!-- Filter & Reset Buttons -->
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">Filter</button>
+                <a href="{% url 'management:booking_list' %}" class="btn btn-outline-secondary fw-bold" title="Reset Filters">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Booking Table -->
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle bg-white mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Booking ID</th>
+                    <th>Guest Name</th>
+                    <th>Mobile</th>
+                    <th>Dates</th>
+                    <th>GRC Status</th>
+                    <th>Total / Paid</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>
+                        <!-- Booking ID ক্লিক করলে GRC Modal খুলবে -->
+                        <a href="javascript:void(0)" class="fw-bold text-decoration-none text-primary" onclick="openGrcModal('{{ b.id }}')">
+                            {{ b.booking_id }} 🔗
+                        </a>
+                    </td>
+                    <td>{{ b.guest_name }}</td>
+                    <td>{{ b.mobile }}</td>
+                    <td><small>{{ b.check_in }} to {{ b.check_out }}</small></td>
+                    <td>
+                        {% if b.grc_card and b.grc_card.grc_no %}
+                            <span class="badge bg-success">GRC: {{ b.grc_card.grc_no }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>Total: Tk {{ b.total_bill }}</small><br>
+                        <small class="text-success">Paid: Tk {{ b.paid_amount }}</small>
+                    </td>
+                    <td>
+                        <!-- View Button -->
+                        <button class="btn btn-info btn-sm text-white" onclick="openBookingModal('{{ b.id }}', 'view')">View</button>
+
+                        <!-- Edit Button -->
+                        <button class="btn btn-warning btn-sm" onclick="openBookingModal('{{ b.id }}', 'edit')">Edit</button>
+
+                        <!-- Cancel Button (GRC নাম্বার এন্ট্রি থাকলে Inactive হয়ে যাবে) -->
+                        {% if b.grc_card and b.grc_card.grc_no %}
+                            <button class="btn btn-danger btn-sm" disabled title="GRC এন্ট্রি থাকার কারণে বুকিং বাতিল করা সম্ভব নয়">Cancel</button>
+                        {% else %}
+                            <a href="#" class="btn btn-danger btn-sm" onclick="return confirm('আপনি কি নিশ্চিত যে এই বুকিং বাতিল করতে চান?')">Cancel</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted p-4">কোনো বুকিং খুঁজে পাওয়া যায়নি।</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- COMMON VIEW / EDIT / GRC MODAL -->
+<div class="modal fade" id="mainBookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="modalTitle">Booking Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="bookingModalForm" onsubmit="submitModalForm(event)">
+        {% csrf_token %}
+        <input type="hidden" id="modal_booking_id">
+
+        <div class="modal-body">
+            <!-- Alert Info for GRC -->
+            <div id="grc_warning_alert" class="alert alert-warning d-none" role="alert">
+                <strong>নোট:</strong> GRC নাম্বার প্রবেশ করালে এই বুকিংয়ের Cancel বাটন নিষ্ক্রিয় হয়ে যাবে।
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Guest Name</label>
+                    <input type="text" id="m_guest_name" name="guest_name" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Mobile</label>
+                    <input type="text" id="m_mobile" name="mobile" class="form-control" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Check-In</label>
+                    <input type="text" id="m_check_in" class="form-control" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Check-Out</label>
+                    <input type="text" id="m_check_out" class="form-control" readonly>
+                </div>
+
+                <!-- GRC Fields Section -->
+                <div class="col-12"><hr><h6 class="fw-bold text-primary">Guest Registration Card (GRC) Info</h6></div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-danger">Manual GRC Number</label>
+                    <input type="text" id="m_grc_no" name="grc_no" class="form-control" placeholder="যেমন: GRC-10024">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Father Name</label>
+                    <input type="text" id="m_father_name" name="father_name" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">NID / Passport</label>
+                    <input type="text" id="m_nid_passport_no" name="nid_passport_no" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Address</label>
+                    <input type="text" id="m_address" name="address" class="form-control">
+                </div>
+
+                <!-- Financial Fields -->
+                <div class="col-12"><hr><h6 class="fw-bold text-primary">Billing Details</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Discount Amount (Tk)</label>
+                    <input type="number" step="0.01" id="m_discount_amount" name="discount_amount" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">VAT (%)</label>
+                    <input type="number" step="0.01" id="m_vat_percentage" name="vat_percentage" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Service Charge (%)</label>
+                    <input type="number" step="0.01" id="m_service_charge_percentage" name="service_charge_percentage" class="form-control">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Total Bill</label>
+                    <input type="text" id="m_total_bill" class="form-control bg-light" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Paid Amount</label>
+                    <input type="text" id="m_paid_amount" class="form-control bg-light" readonly>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-danger">Due Amount</label>
+                    <input type="text" id="m_due_amount" class="form-control bg-light text-danger fw-bold" readonly>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" id="saveBtn" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let modalInstance = null;
+
+function fetchBookingData(bookingPk, callback) {
+    fetch(`/management/api/booking/${bookingPk}/details/`)
+    .then(res => res.json())
+    .then(res => {
+        if(res.status === 'success') {
+            callback(res.data);
+        }
+    });
+}
+
+// VIEW & EDIT MODE HANDLER
+function openBookingModal(bookingPk, mode) {
+    fetchBookingData(bookingPk, function(data) {
+        document.getElementById('modal_booking_id').value = data.id;
+        document.getElementById('modalTitle').innerText = (mode === 'view' ? 'View Booking - #' : 'Edit Booking - #') + data.booking_id;
+        
+        // Form Fields Populating
+        document.getElementById('m_guest_name').value = data.guest_name;
+        document.getElementById('m_mobile').value = data.mobile;
+        document.getElementById('m_check_in').value = data.check_in;
+        document.getElementById('m_check_out').value = data.check_out;
+        
+        document.getElementById('m_grc_no').value = data.grc_no;
+        document.getElementById('m_father_name').value = data.father_name;
+        document.getElementById('m_nid_passport_no').value = data.nid_passport_no;
+        document.getElementById('m_address').value = data.address;
+
+        document.getElementById('m_discount_amount').value = data.discount_amount;
+        document.getElementById('m_vat_percentage').value = data.vat_percentage;
+        document.getElementById('m_service_charge_percentage').value = data.service_charge_percentage;
+        
+        document.getElementById('m_total_bill').value = 'Tk ' + data.total_bill;
+        document.getElementById('m_paid_amount').value = 'Tk ' + data.paid_amount;
+        document.getElementById('m_due_amount').value = 'Tk ' + data.due_amount;
+
+        const formElements = document.getElementById('bookingModalForm').querySelectorAll('input');
+        const saveBtn = document.getElementById('saveBtn');
+        const alertBox = document.getElementById('grc_warning_alert');
+
+        if (mode === 'view') {
+            // Read-Only Mode
+            formElements.forEach(el => el.setAttribute('readonly', true));
+            saveBtn.classList.add('d-none');
+            alertBox.classList.add('d-none');
+        } else {
+            // Edit Mode
+            formElements.forEach(el => {
+                if(el.id !== 'm_check_in' && el.id !== 'm_check_out' && el.id !== 'm_total_bill' && el.id !== 'm_paid_amount' && el.id !== 'm_due_amount') {
+                    el.removeAttribute('readonly');
+                }
+            });
+            saveBtn.classList.remove('d-none');
+            alertBox.classList.remove('d-none');
+        }
+
+        modalInstance = new bootstrap.Modal(document.getElementById('mainBookingModal'));
+        modalInstance.show();
+    });
+}
+
+// BOOKING ID CLICK -> GRC MODAL OPEN
+function openGrcModal(bookingPk) {
+    // GRC মোড সরাসরি Edit/View সুবিধা দেয়
+    openBookingModal(bookingPk, 'edit');
+}
+
+// FORM SUBMIT HANDLER
+function submitModalForm(e) {
+    e.preventDefault();
+    const bookingPk = document.getElementById('modal_booking_id').value;
+    const formData = new FormData(document.getElementById('bookingModalForm'));
+
+    fetch(`/management/api/booking/${bookingPk}/update/`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('ত্রুটি: ' + data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

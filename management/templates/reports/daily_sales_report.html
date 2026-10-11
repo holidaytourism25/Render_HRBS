@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Daily Sales Report</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-dark btn-sm">← Back to Dashboard</a>
+    </div>
+
+    <!-- Filter Form Card -->
+    <div class="card p-3 shadow-sm mb-4">
+        <form method="GET" action="{% url 'management:daily_sales_report' %}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold">Select Hotel</label>
+                <select name="hotel" class="form-select" required>
+                    {% for h in hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel and selected_hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Sales Date</label>
+                <input type="date" name="date" class="form-control" value="{{ selected_date }}" required>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">Filter</button>
+                {% if selected_hotel %}
+                <a href="?hotel={{ selected_hotel.id }}&date={{ selected_date }}&download=pdf" target="_blank" class="btn btn-danger w-100 fw-bold text-nowrap">Download PDF 📄</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card bg-dark text-white p-3 text-center">
+                <h6>Total Sales</h6>
+                <h4 class="mb-0">Tk. {{ total_sales_amount }}</h4>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white p-3 text-center">
+                <h6>Total Advance Paid</h6>
+                <h4 class="mb-0">Tk. {{ total_paid_against_sales }}</h4>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white p-3 text-center">
+                <h6>Total Due</h6>
+                <h4 class="mb-0">Tk. {{ total_due_against_sales }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Guest Name</th>
+                            <th>Mobile</th>
+                            <th>Check-In / Out</th>
+                            <th>Total Bill</th>
+                            <th>Paid</th>
+                            <th>Due</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bookings %}
+                        <tr>
+                            <td><strong>{{ b.booking_id }}</strong></td>
+                            <td>{{ b.guest_name }}</td>
+                            <td>{{ b.mobile }}</td>
+                            <td>{{ b.check_in|date:"d M" }} - {{ b.check_out|date:"d M Y" }}</td>
+                            <td>Tk. {{ b.total_bill }}</td>
+                            <td class="text-success fw-bold">Tk. {{ b.paid_amount }}</td>
+                            <td class="text-danger fw-bold">Tk. {{ b.due_amount }}</td>
+                            <td><span class="badge bg-info text-dark">{{ b.status }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No sales found for this date and hotel selection.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

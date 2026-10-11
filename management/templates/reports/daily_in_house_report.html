@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Daily In-House Guest Report</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-dark btn-sm">← Back to Dashboard</a>
+    </div>
+
+    <!-- Filter Form Card -->
+    <div class="card p-3 shadow-sm mb-4">
+        <form method="GET" action="{% url 'management:daily_in_house_report' %}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold">Select Hotel</label>
+                <select name="hotel" class="form-select" required>
+                    {% for h in hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel and selected_hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Select Date</label>
+                <input type="date" name="date" value="{{ selected_date }}" class="form-control" required>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">Filter</button>
+                {% if selected_hotel %}
+                <a href="?hotel={{ selected_hotel.id }}&date={{ selected_date }}&download=pdf" target="_blank" class="btn btn-danger w-100 fw-bold text-nowrap">PDF 📄</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card bg-info text-dark p-3 text-center">
+                <h6>Total In-House Bookings</h6>
+                <h4 class="mb-0">{{ bookings.count }}</h4>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-success text-white p-3 text-center">
+                <h6>Total In-House Rent</h6>
+                <h4 class="mb-0">Tk. {{ total_in_house_rent }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Booking ID</th>
+                            <th>Guest Name</th>
+                            <th>Mobile</th>
+                            <th>Assigned Rooms</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th>Total Rent</th>
+                            <th>Paid Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bookings %}
+                        <tr>
+                            <td><strong>#{{ b.booking_id }}</strong></td>
+                            <td class="fw-bold">{{ b.guest_name }}</td>
+                            <td>{{ b.mobile }}</td>
+                            <td>
+                                {% for rn in b.assigned_room_numbers.all %}
+                                    <span class="badge bg-secondary">{{ rn.room_number }}</span>
+                                {% empty %}
+                                    <span class="text-muted">N/A</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ b.check_in|date:"d M Y" }}</td>
+                            <td>{{ b.check_out|date:"d M Y" }}</td>
+                            <td>Tk. {{ b.base_price }}</td>
+                            <td class="text-success fw-bold">Tk. {{ b.paid_amount }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">No guests currently in-house for this date and hotel selection.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

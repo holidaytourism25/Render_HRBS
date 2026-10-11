@@ -1,0 +1,86 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 5.0cm 1.5cm 2cm 1.5cm; /* ওপরের মার্জিন একটু বেশি রাখুন যাতে প্যাডের হেডার লেখা কভার না হয় */
+            
+            /* ব্যাকগ্রাউন্ড প্যাড ইমেজ লিংক */
+            background-image: url("{% static 'management/images/pad_background.jpeg' %}");
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    {% comment %} <style>
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #333; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .table th, .table td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        .table th { background-color: #f2f2f2; }
+        .summary-box { margin-top: 15px; padding: 10px; border: 1px solid #333; text-align: right; }
+    </style> {% endcomment %}
+</head>
+<body>
+    <div class="header">
+        <h2>{{ hotel.name }}</h2>
+        <h3>Daily Sales Report</h3>
+        <p>Date: {{ selected_date }} | Generated at: {{ report_generated_at|date:"d M Y, h:i A" }}</p>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Booking ID</th>
+                <th>Guest</th>
+                <th>Mobile</th>
+                <th>Check In-Out</th>
+                <th>Total Sales</th>
+                <th>Paid</th>
+                <th>Due</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td>{{ b.booking_id }}</td>
+                <td>{{ b.guest_name }}</td>
+                <td>{{ b.mobile }}</td>
+                <td>{{ b.check_in|date:"d M" }} - {{ b.check_out|date:"d M" }}</td>
+                <td>Tk. {{ b.total_bill }}</td>
+                <td>Tk. {{ b.paid_amount }}</td>
+                <td>Tk. {{ b.due_amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-box">
+        <p><strong>Total Sales:</strong> Tk. {{ total_sales_amount }}</p>
+        <p><strong>Total Paid Advance:</strong> Tk. {{ total_paid_against_sales }}</p>
+        <h4><strong>Total Due:</strong> Tk. {{ total_due_against_sales }}</h4>
+    </div>
+</body>
+</html>

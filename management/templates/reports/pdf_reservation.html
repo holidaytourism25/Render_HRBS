@@ -1,0 +1,76 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 5.0cm 1.5cm 2cm 1.5cm; /* ওপরের মার্জিন একটু বেশি রাখুন যাতে প্যাডের হেডার লেখা কভার না হয় */
+            
+            /* ব্যাকগ্রাউন্ড প্যাড ইমেজ লিংক */
+            background-image: url("{% static 'management/images/pad_background.jpeg' %}");
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+    {% comment %} <style>
+        @page { size: A4 portrait; margin: 15mm; }
+        body { font-family: sans-serif; font-size: 11pt; }
+        h2 { text-align: center; margin-bottom: 5px; }
+        p.subtitle { text-align: center; margin-top: 0; color: #555; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style> {% endcomment %}
+</head>
+<body>
+    <h2>{{ selected_hotel.name }}</h2>
+    <p class="subtitle">Reservation Report ({{ start_date }} to {{ end_date }})</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Booking ID</th>
+                <th>Guest Name</th>
+                <th>Mobile</th>
+                <th>Check-in</th>
+                <th>Paid</th>
+                <th>Due</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bookings %}
+            <tr>
+                <td>#{{ b.booking_id }}</td>
+                <td>{{ b.guest_name }}</td>
+                <td>{{ b.mobile }}</td>
+                <td>{{ b.check_in }}</td>
+                <td>{{ b.paid_amount }}</td>
+                <td>{{ b.due_amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

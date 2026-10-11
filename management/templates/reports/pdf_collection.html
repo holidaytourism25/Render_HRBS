@@ -1,0 +1,84 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 5.5cm 1.5cm 2cm 1.5cm; /* ওপরের মার্জিন একটু বেশি রাখুন যাতে প্যাডের হেডার লেখা কভার না হয় */
+            
+            /* ব্যাকগ্রাউন্ড প্যাড ইমেজ লিংক */
+            background-image: url("{% static 'management/images/pad_background.jpeg' %}");
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+          }
+    </style>
+    {% comment %} <style>
+        body { font-family: Helvetica, sans-serif; font-size: 11px; color: #333; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .table th, .table td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        .table th { background-color: #f2f2f2; }
+        .summary-box { margin-top: 15px; padding: 10px; border: 1px solid #333; text-align: right; }
+    </style> {% endcomment %}
+</head>
+<body>
+    <div class="header">
+        <h2>{{ hotel.name }}</h2>
+        <h3>Daily Cash Collection Report (Calendar Day)</h3>
+        <p>Collection Date: {{ selected_date }} (12:00:01 AM - 12:00:00 AM)</p>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Booking ID</th>
+                <th>Guest</th>
+                <th>Method</th>
+                <th>Note</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transactions %}
+            <tr>
+                <td>{{ t.created_at|date:"h:i:s A" }}</td>
+                <td>{{ t.booking.booking_id }}</td>
+                <td>{{ t.booking.guest_name }}</td>
+                <td>{{ t.payment_method }}</td>
+                <td>{{ t.note }}</td>
+                <td>Tk. {{ t.amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary-box">
+        <p><strong>Cash Collection:</strong> Tk. {{ cash_collection }}</p>
+        <p><strong>Online Collection:</strong> Tk. {{ online_collection }}</p>
+        <h3><strong>Total Collected:</strong> Tk. {{ total_collection }}</h3>
+    </div>
+</body>
+</html>

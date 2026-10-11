@@ -41,7 +41,7 @@
             <div class="card-body">
                 <h5 class="card-title">{{ hotel.name }}</h5>
                 <p class="text-muted small">{{ hotel.location }}</p>
-                <a href="{% url 'hotel_detail' hotel.id %}"
+                <a href="{% url 'rbs:hotel_detail' hotel.id %}"
                    class="btn btn-primary w-100">
                     View Rooms
                 </a>

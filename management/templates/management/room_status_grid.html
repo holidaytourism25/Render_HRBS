@@ -1,0 +1,765 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .grid-box-white { background-color: #ffffff; color: #333; border: 2px solid #dee2e6; }
+    .grid-box-green { background-color: #28a745; color: #fff; }
+    .grid-box-yellow { background-color: #ffc107; color: #212529; }
+    .grid-box-red { background-color: #dc3545; color: #fff; }
+    
+    .room-card { 
+        transition: transform 0.2s; 
+        cursor: pointer; 
+        border-radius: 8px; 
+        min-height: 115px; 
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .room-card:hover { transform: scale(1.03); }
+</style>
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Booking Room Status Matrix</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-dark btn-sm">← Back to Dashboard</a>
+    </div>
+
+    <!-- Search / Filter Form -->
+    <div class="card p-3 shadow-sm mb-4">
+        <form method="GET" action="{% url 'management:room_status_grid' %}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Select Hotel</label>
+                <select name="hotel" class="form-select">
+                    {% for h in hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel and selected_hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Check-Out Date</label>
+                <input type="date" name="checkout_date" class="form-control" value="{{ filter_date }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-dark w-100 fw-bold">Search Matrix</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Indicator Legend -->
+    <div class="d-flex gap-3 mb-4 p-3 bg-white shadow-sm rounded">
+        <span class="badge bg-success fs-6 p-2">🟢 Full Paid (Green)</span>
+        <span class="badge bg-warning text-dark fs-6 p-2">🟡 Reserved (Yellow)</span>
+        <span class="badge bg-danger fs-6 p-2">🔴 Partial Paid (Red)</span>
+        <span class="badge bg-light text-dark border fs-6 p-2">⚪ Available (White)</span>
+    </div>
+
+    <!-- Room Grid View -->
+    <div class="row g-3">
+        {% for item in room_grid %}
+            <div class="col-6 col-md-3 col-lg-2">
+                {% if item.booking %}
+                    <!-- GRC No চেক করে Modal ওপেন করা বা Alert দেওয়া -->
+                    <div class="card p-2 text-center shadow-sm room-card grid-box-{{ item.color }}" 
+                         onclick="checkAndOpenModal('{{ item.booking.id }}', '{{ item.has_grc|yesno:"true,false" }}')">
+                        <h4 class="fw-bold mb-0">{{ item.room_obj.room_number }}</h4>
+                        <small class="d-block text-truncate fw-bold mt-1">{{ item.booking.guest_name }}</small>
+                        <small class="d-block mt-1">Due: Tk. {{ item.booking.due_amount }}</small>
+                    </div>
+                {% else %}
+                    <div class="card p-2 text-center shadow-sm room-card grid-box-white">
+                        <h4 class="fw-bold mb-0">{{ item.room_obj.room_number }}</h4>
+                        <small class="text-muted mt-1">Available</small>
+                        <small class="d-block mt-1">&nbsp;</small> 
+                    </div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="col-12 text-muted">No rooms found for this selection.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- COMPREHENSIVE BOOKING MANAGEMENT MODAL -->
+<div class="modal fade" id="bookingQuickModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="bookingModalLabel">Manage Booking <span id="m_booking_id"></span> | Guest: <span id="m_header_guest"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-3" id="bookingTab" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#tab-details">Guest & Bill Adjustments</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="additional-guests-tab" data-bs-toggle="tab" data-bs-target="#tab-additional">Additional Guests</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#tab-rooms">Rooms & Add/Cancel</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#tab-payments">Transactions & Collections</button>
+          </li>
+        </ul>
+
+        <form id="quickUpdateForm">
+          {% csrf_token %}
+          <input type="hidden" id="modal_booking_pk" name="booking_id">
+
+          <div class="tab-content">
+            <!-- TAB 1: GUEST DETAILS & DISCOUNTS / CHARGES -->
+            <div class="tab-pane fade show active" id="tab-details">
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Guest Name</label>
+                  <input type="text" id="m_guest_name" name="guest_name" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Mobile</label>
+                  <input type="text" id="m_mobile" name="mobile" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">Booking Status</label>
+                  <select id="m_status" name="status" class="form-select">
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Reserved">Reserved</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">Check-In</label>
+                  <input type="date" id="m_check_in" name="check_in" class="form-control" readonly>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">Check-Out</label>
+                  <input type="date" id="m_check_out" name="check_out" class="form-control">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">Overall Discount (Tk.)</label>
+                  <input type="number" step="0.01" id="m_discount_amount" name="discount_amount" class="form-control" value="0.00">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">Service Charge (%)</label>
+                  <input type="number" step="0.01" id="m_service_charge" name="service_charge_percentage" class="form-control" value="0.00">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">VAT (%)</label>
+                  <input type="number" step="0.01" id="m_vat_percentage" name="vat_percentage" class="form-control" value="0.00">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-bold">Other Charge (Tk.)</label>
+                  <input type="number" step="0.01" id="m_other_charge" name="other_charge" class="form-control" value="0.00">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">Other Charge Note</label>
+                  <input type="text" id="m_other_charge_reference" name="other_charge_reference" class="form-control" placeholder="Reason for extra charge">
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: ADDITIONAL GUESTS DATA ENTRY -->
+            <div class="tab-pane fade" id="tab-additional">
+              <h6><strong>Additional Guests List</strong></h6>
+              <div class="table-responsive mb-3">
+                <table class="table table-bordered table-sm align-middle" id="additional_guests_table">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Full Name</th>
+                      <th>Age</th>
+                      <th>Relation</th>
+                      <th style="width: 50px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m_additional_guests_body">
+                    <!-- Dynamic Rows -->
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="addGuestRow()">+ Add New Guest</button>
+            </div>
+
+            <!-- TAB 3: ROOMS MANAGEMENT (ADD/CANCEL ROOMS WITH BREAKFAST) -->
+            <div class="tab-pane fade" id="tab-rooms">
+              <h6><strong>Currently Assigned Rooms</strong></h6>
+              <div class="table-responsive mb-3">
+                <table class="table table-bordered table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Room No</th>
+                      <th>Type</th>
+                      <th>Price / Night</th>
+                      <th>Breakfast</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m_assigned_rooms_table_body">
+                    <!-- Dynamic Rows -->
+                  </tbody>
+                </table>
+              </div>
+
+              <hr>
+              <h6><strong>Add New Room to this Booking ID</strong></h6>
+              <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md-5">
+                  <label class="form-label fw-bold">Available Room</label>
+                  <select id="m_available_rooms_select" class="form-select">
+                    <option value="">Select Available Room...</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="m_new_room_breakfast" checked>
+                    <label class="form-check-label fw-bold" for="m_new_room_breakfast">Include Breakfast</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <button type="button" class="btn btn-outline-success w-100" onclick="addRoomToBooking()">+ Add Room & Adjust Bill</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 4: PAYMENTS & COLLECTION HISTORY -->
+            <div class="tab-pane fade" id="tab-payments">
+              <div class="card p-3 mb-3 bg-light border">
+                <h6><strong>Add New Payment Entry</strong></h6>
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <input type="number" step="0.01" id="m_add_payment" name="add_payment" class="form-control" placeholder="Amount (Tk.)">
+                  </div>
+                  <div class="col-md-4">
+                    <select id="m_payment_method" name="payment_method" class="form-select">
+                      <option value="Cash">Cash</option>
+                      <option value="bKash">bKash</option>
+                      <option value="Nagad">Nagad</option>
+                      <option value="Card">Card / POS</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <input type="text" id="m_payment_note" name="payment_note" class="form-control" placeholder="Note / Txn ID">
+                  </div>
+                </div>
+              </div>
+
+              <h6><strong>Date-wise Collection History</strong></h6>
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Method</th>
+                      <th>Amount</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m_payment_history_body">
+                    <!-- Dynamic -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <hr>
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Total Bill:</strong> Tk. <span id="m_total_bill">0.00</span> | 
+              <strong>Paid:</strong> Tk. <span id="m_total_paid">0.00</span> | 
+              <strong class="text-danger">Due:</strong> Tk. <span id="m_total_due">0.00</span>
+            </div>
+            <div class="d-flex gap-2">
+              <a id="m_print_receipt_btn" href="#" target="_blank" class="btn btn-success btn-sm fw-bold">
+                🖨️ Generate Invoice / Receipt
+              </a>
+              <button type="submit" class="btn btn-primary btn-sm fw-bold">Save All Changes</button>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentBookingPk = null;
+
+function checkAndOpenModal(bookingPk, hasGrc) {
+    if (hasGrc === 'false') {
+        alert('এই বুকিংটির জন্য কোনো GRC নম্বর এন্ট্রি করা হয়নি। অনুগ্রহ করে Booking List থেকে GRC আপডেট করুন।');
+        return;
+    }
+    openBookingModal(bookingPk);
+}
+
+function openBookingModal(bookingPk) {
+    currentBookingPk = bookingPk;
+    fetch(`/management/api/booking/${bookingPk}/detail/`)
+    .then(response => response.json())
+    .then(res => {
+        if (res.status === 'success') {
+            const b = res.data;
+            document.getElementById('modal_booking_pk').value = b.id;
+            document.getElementById('m_booking_id').innerText = '#' + b.booking_id;
+            document.getElementById('m_header_guest').innerText = b.guest_name;
+            document.getElementById('m_guest_name').value = b.guest_name;
+            document.getElementById('m_mobile').value = b.mobile;
+            document.getElementById('m_status').value = b.status;
+            document.getElementById('m_check_in').value = b.check_in;
+            document.getElementById('m_check_out').value = b.check_out;
+            
+            document.getElementById('m_discount_amount').value = b.discount_amount;
+            document.getElementById('m_vat_percentage').value = b.vat_percentage;
+            document.getElementById('m_service_charge').value = b.service_charge_percentage;
+            document.getElementById('m_other_charge').value = b.other_charge;
+            document.getElementById('m_other_charge_reference').value = b.other_charge_reference;
+
+            document.getElementById('m_total_bill').innerText = b.total_bill;
+            document.getElementById('m_total_paid').innerText = b.paid_amount;
+            document.getElementById('m_total_due').innerText = b.due_amount;
+
+            // Invoice PDF Button Link
+            document.getElementById('m_print_receipt_btn').href = `/management/booking/${b.id}/process-report/`;
+
+            // Payment History Table
+            let historyHtml = '';
+            if (b.transactions && b.transactions.length > 0) {
+                b.transactions.forEach(t => {
+                    historyHtml += `<tr>
+                        <td>${t.created_at}</td>
+                        <td>${t.payment_method}</td>
+                        <td class="fw-bold text-success">Tk. ${t.amount}</td>
+                        <td>${t.note || '-'}</td>
+                    </tr>`;
+                });
+            } else {
+                historyHtml = `<tr><td colspan="4" class="text-center text-muted">No transaction history found.</td></tr>`;
+            }
+            document.getElementById('m_payment_history_body').innerHTML = historyHtml;
+
+            // Additional Guests
+            let addGuestHtml = '';
+            if (b.additional_guests && b.additional_guests.length > 0) {
+                b.additional_guests.forEach(g => {
+                    addGuestHtml += `<tr>
+                        <td><input type="text" name="additional_guest_name" class="form-control form-control-sm" value="${g.name}"></td>
+                        <td><input type="number" name="additional_guest_age" class="form-control form-control-sm" value="${g.age || ''}"></td>
+                        <td><input type="text" name="additional_guest_relation" class="form-control form-control-sm" value="${g.relation || ''}"></td>
+                        <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
+                    </tr>`;
+                });
+            }
+            document.getElementById('m_additional_guests_body').innerHTML = addGuestHtml;
+
+            // Assigned Rooms Table
+            let roomsHtml = '';
+            b.assigned_rooms.forEach(r => {
+                roomsHtml += `<tr>
+                    <td><strong>#${r.room_number}</strong></td>
+                    <td>${r.room_type}</td>
+                    <td>Tk. ${r.price}</td>
+                    <td>${r.has_breakfast ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="manageRoom('remove', ${r.id})">Cancel Room</button>
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('m_assigned_rooms_table_body').innerHTML = roomsHtml;
+
+            // Available Rooms Dropdown
+            let availSelect = document.getElementById('m_available_rooms_select');
+            availSelect.innerHTML = '<option value="">Select Available Room...</option>';
+            if(b.available_rooms && b.available_rooms.length > 0){
+                b.available_rooms.forEach(ar => {
+                    availSelect.innerHTML += `<option value="${ar.id}">Room #${ar.room_number} (${ar.room_type}) - Tk. ${ar.price}</option>`;
+                });
+            }
+
+            var myModal = new bootstrap.Modal(document.getElementById('bookingQuickModal'));
+            myModal.show();
+        }
+    });
+}
+
+// Add guest row dynamically
+function addGuestRow() {
+    let row = `<tr>
+        <td><input type="text" name="additional_guest_name" class="form-control form-control-sm" placeholder="Name" required></td>
+        <td><input type="number" name="additional_guest_age" class="form-control form-control-sm" placeholder="Age"></td>
+        <td><input type="text" name="additional_guest_relation" class="form-control form-control-sm" placeholder="Relation"></td>
+        <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
+    </tr>`;
+    document.getElementById('m_additional_guests_body').insertAdjacentHTML('beforeend', row);
+}
+
+function removeRow(btn) {
+    btn.closest('tr').remove();
+}
+
+// Manage Room Addition
+function addRoomToBooking() {
+    const roomNumId = document.getElementById('m_available_rooms_select').value;
+    const hasBreakfast = document.getElementById('m_new_room_breakfast').checked;
+    if(!roomNumId) {
+        alert('অনুগ্রহ করে একটি রুম সিলেক্ট করুন!');
+        return;
+    }
+    manageRoom('add', roomNumId, hasBreakfast);
+}
+
+function manageRoom(actionType, roomNumId, hasBreakfast = true) {
+    let confirmMsg = actionType === 'add' ? 'এই রুমটি যোগ করতে চান?' : 'এই রুমটি বুকিং থেকে বাতিল করতে চান?';
+    if (confirm(confirmMsg)) {
+        let formData = new FormData();
+        formData.append('action', actionType);
+        formData.append('room_number_id', roomNumId);
+        formData.append('has_breakfast', hasBreakfast);
+
+        fetch(`/management/api/booking/${currentBookingPk}/manage-rooms/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                alert('রুম ও বিল সফলতা সাথে আপডেট হয়েছে!');
+                openBookingModal(currentBookingPk); // Refresh Modal
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+}
+
+// Submit Full Modal Form for Edit & Payment Update
+document.getElementById('quickUpdateForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    let formData = new FormData(this);
+
+    fetch(`/management/api/booking/${currentBookingPk}/update-full/`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert('সকল তথ্য সফলভাবে সংকলিত ও হিসাব আপডেট করা হয়েছে!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+});
+</script>
+
+{% endblock %}
+
+
+
+
+
+{% comment %} {% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .grid-box-white { background-color: #ffffff; color: #333; border: 2px solid #dee2e6; }
+    .grid-box-green { background-color: #28a745; color: #fff; }
+    .grid-box-yellow { background-color: #ffc107; color: #212529; }
+    .grid-box-red { background-color: #dc3545; color: #fff; }
+    
+    /* সব কার্ড এক সমান উচ্চতা দেওয়ার জন্য min-height ও flexbox যোগ করা হয়েছে */
+    .room-card { 
+        transition: transform 0.2s; 
+        cursor: pointer; 
+        border-radius: 8px; 
+        min-height: 115px; 
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .room-card:hover { transform: scale(1.03); }
+</style>
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">Booking Room Status Matrix</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-dark btn-sm">← Back to Dashboard</a>
+    </div>
+
+    <!-- Search / Filter Form -->
+    <div class="card p-3 shadow-sm mb-4">
+        <form method="GET" action="{% url 'management:room_status_grid' %}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Select Hotel</label>
+                <select name="hotel" class="form-select">
+                    {% for h in hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel and selected_hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Check-Out Date</label>
+                <input type="date" name="checkout_date" class="form-control" value="{{ filter_date }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-dark w-100 fw-bold">Search Matrix</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Indicator Legend -->
+    <div class="d-flex gap-3 mb-4 p-3 bg-white shadow-sm rounded">
+        <span class="badge bg-success fs-6 p-2">🟢 Full Paid (Green)</span>
+        <span class="badge bg-warning text-dark fs-6 p-2">🟡 Reserved (Yellow)</span>
+        <span class="badge bg-danger fs-6 p-2">🔴 Partial Paid (Red)</span>
+        <span class="badge bg-light text-dark border fs-6 p-2">⚪ Available (White)</span>
+    </div>
+
+    <!-- Room Grid View -->
+    <div class="row g-3">
+        {% for item in room_grid %}
+            <div class="col-6 col-md-3 col-lg-2">
+                {% if item.booking %}
+                    <div class="card p-2 text-center shadow-sm room-card grid-box-{{ item.color }}" 
+                         onclick="openBookingModal('{{ item.booking.id }}')">
+                        <h4 class="fw-bold mb-0">#{{ item.room_obj.room_number }}</h4>
+                        <small class="d-block text-truncate fw-bold mt-1">{{ item.booking.guest_name }}</small>
+                        <small class="d-block mt-1">Due: Tk. {{ item.booking.due_amount }}</small>
+                    </div>
+                {% else %}
+                    <div class="card p-2 text-center shadow-sm room-card grid-box-white">
+                        <h4 class="fw-bold mb-0">#{{ item.room_obj.room_number }}</h4>
+                        <small class="text-muted mt-1">Available</small>
+                        <!-- স্পেসিং সমান রাখার জন্য খালি ডামি লাইন -->
+                        <small class="d-block mt-1">&nbsp;</small> 
+                    </div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="col-12 text-muted">No rooms found for this selection.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- BOOKING QUICK ACTION MODAL -->
+<div class="modal fade" id="bookingQuickModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" > Guest Registration Card (GRC) </span></h5>
+        <h5 class="modal-title" id="bookingModalLabel">Manage Booking <span id="m_booking_id"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-3" id="bookingTab" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#tab-details">Edit & Payments</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#tab-rooms">Rooms & Calculation</button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <!-- TAB 1: EDIT / UPDATE & PAYMENT HISTORY -->
+          <div class="tab-pane fade show active" id="tab-details">
+            <form id="quickUpdateForm" method="POST" action="">
+              {% csrf_token %}
+              <input type="hidden" id="modal_booking_pk" name="booking_id">
+              
+              <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                  <label class="form-label font-weight-bold">Guest Name</label>
+                  <input type="text" id="m_guest_name" name="guest_name" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label font-weight-bold">Mobile</label>
+                  <input type="text" id="m_mobile" name="mobile" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                  <label class="form-label">Check-Out Date</label>
+                  <input type="date" id="m_check_out" name="check_out" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Add New Payment (Tk.)</label>
+                  <input type="number" step="0.01" id="m_add_payment" name="add_payment" class="form-control" placeholder="0.00">
+                </div>
+              </div>
+
+              <hr>
+              <h6><strong>Date-wise Collection History</strong></h6>
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date & Time</th>
+                      <th>Payment Method</th>
+                      <th>Amount</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m_payment_history_body">
+                    <!-- Dynamic JS Injection -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                  <strong>Total Paid:</strong> Tk. <span id="m_total_paid">0.00</span> | 
+                  <strong class="text-danger">Due:</strong> Tk. <span id="m_total_due">0.00</span>
+                </div>
+                <div>
+                  <a id="m_print_receipt_btn" href="#" target="_blank" class="btn btn-success btn-sm">
+                    🖨️ Print Receipt/Invoice
+                  </a>
+                  <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- TAB 2: ROOM MANAGEMENT (ADD/REMOVE ROOMS) -->
+          <div class="tab-pane fade" id="tab-rooms">
+            <h6><strong>Assigned Rooms</strong></h6>
+            <ul class="list-group mb-3" id="m_assigned_rooms_list">
+              <!-- Dynamic JS Injection -->
+            </ul>
+
+            <hr>
+            <h6><strong>Add New Room to this Booking</strong></h6>
+            <div class="row g-2 mb-3">
+              <div class="col-md-8">
+                <select id="m_available_rooms_select" class="form-select">
+                  <option value="">Select Available Room...</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <button type="button" class="btn btn-outline-success w-100" onclick="addRoomToBooking()">+ Add Room</button>
+              </div>
+            </div>
+
+            <p class="text-muted small mb-0">* নতুন রুম যোগ বা পুরাতন রুম রিমুভ করলে সিস্টেম স্বয়ংক্রিয়ভাবে মোট বিল এবং বকেয়া হিসাব আপডেট করবে।</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JAVASCRIPT FOR MODAL & AJAX -->
+<script>
+let currentBookingPk = null;
+
+function openBookingModal(bookingPk) {
+    currentBookingPk = bookingPk;
+    fetch(`/management/api/booking/${bookingPk}/detail/`)
+    .then(response => response.json())
+    .then(res => {
+        if (res.status === 'success') {
+            const b = res.data;
+            document.getElementById('modal_booking_pk').value = b.id;
+            document.getElementById('m_booking_id').innerText = '#' + b.booking_id;
+            document.getElementById('m_guest_name').value = b.guest_name;
+            document.getElementById('m_mobile').value = b.mobile;
+            document.getElementById('m_check_out').value = b.check_out;
+            document.getElementById('m_total_paid').innerText = b.paid_amount;
+            document.getElementById('m_total_due').innerText = b.due_amount;
+
+            // Invoice PDF Link
+            document.getElementById('m_print_receipt_btn').href = `/management/booking/${b.id}/process-report/`;
+
+            // Payment History Table
+            let historyHtml = '';
+            if (b.transactions && b.transactions.length > 0) {
+                b.transactions.forEach(t => {
+                    historyHtml += `<tr>
+                        <td>${t.created_at}</td>
+                        <td>${t.payment_method}</td>
+                        <td class="fw-bold text-success">Tk. ${t.amount}</td>
+                        <td>${t.note || '-'}</td>
+                    </tr>`;
+                });
+            } else {
+                historyHtml = `<tr><td colspan="4" class="text-center text-muted">No transaction history.</td></tr>`;
+            }
+            document.getElementById('m_payment_history_body').innerHTML = historyHtml;
+
+            // Assigned Rooms
+            let roomsHtml = '';
+            b.assigned_rooms.forEach(r => {
+                roomsHtml += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Room <strong>#${r.room_number}</strong></span>
+                    <button class="btn btn-danger btn-sm" onclick="manageRoom('remove', ${r.id})">Cancel Room</button>
+                </li>`;
+            });
+            document.getElementById('m_assigned_rooms_list').innerHTML = roomsHtml;
+
+            // Available Rooms Dropdown
+            let availSelect = document.getElementById('m_available_rooms_select');
+            availSelect.innerHTML = '<option value="">Select Available Room...</option>';
+            if(b.available_rooms && b.available_rooms.length > 0){
+                b.available_rooms.forEach(ar => {
+                    availSelect.innerHTML += `<option value="${ar.id}">Room #${ar.room_number} (${ar.room_type})</option>`;
+                });
+            }
+
+            var myModal = new bootstrap.Modal(document.getElementById('bookingQuickModal'));
+            myModal.show();
+        }
+    });
+}
+
+function addRoomToBooking() {
+    const roomNumId = document.getElementById('m_available_rooms_select').value;
+    if(!roomNumId) {
+        alert('অনুগ্রহ করে একটি রুম সিলেক্ট করুন!');
+        return;
+    }
+    manageRoom('add', roomNumId);
+}
+
+function manageRoom(actionType, roomNumId) {
+    let confirmMsg = actionType === 'add' ? 'এই রুমটি যোগ করতে চান?' : 'এই রুমটি বুকিং থেকে বাতিল করতে চান?';
+    if (confirm(confirmMsg)) {
+        let formData = new FormData();
+        formData.append('action', actionType);
+        formData.append('room_number_id', roomNumId);
+
+        fetch(`/management/api/booking/${currentBookingPk}/manage-rooms/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                alert('রুম ও হিসাব সফলভাবে আপডেট হয়েছে!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+}
+</script>
+
+{% endblock %} {% endcomment %}

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block header_banner %}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold"><i class="bi bi-door-open text-primary"></i> Room Availability Grid</h3>
+        <a href="{% url 'management:dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Dashboard</a>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="card border-0 shadow-sm p-4 mb-4">
+        <form method="GET" action="{% url 'management:staff_room_search' %}" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Select Hotel *</label>
+                <select name="hotel" id="hotel-select" class="form-select" required>
+                    <option value="">-- Choose Permitted Hotel --</option>
+                    {% for h in allowed_hotels %}
+                        <option value="{{ h.id }}" {% if selected_hotel == h.id|stringformat:"s" %}selected{% endif %}>{{ h.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Check-In Date *</label>
+                <input type="date" id="check_in" name="check_in" class="form-control" min="{{ today_date }}" value="{{ check_in }}" required>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Check-Out Date *</label>
+                <input type="date" id="check_out" name="check_out" class="form-control" min="{{ today_date }}" value="{{ check_out }}" required>
+            </div>
+
+            <!-- Room Type Dropdown -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Room Type (Optional)</label>
+                <select name="room_type" class="form-select" id='room-type-select'>
+                    <option value="">-- All Room Types --</option>
+                    {% for rt in hotel_room_types %}
+                        <option value="{{ rt }}" {% if room_type == rt %}selected{% endif %}>{{ rt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="bi bi-search me-1"></i> Search Rooms</button>
+            </div>
+        </form>
+    </div>
+
+    {% if searched %}
+    <!-- Color Legend -->
+    <div class="d-flex gap-3 mb-4 p-3 bg-white shadow-sm rounded">
+        <span class="badge bg-success fs-6 p-2"><i class="bi bi-check-circle me-1"></i> Available (Click to Book)</span>
+        <span class="badge bg-warning text-dark fs-6 p-2"><i class="bi bi-clock-history me-1"></i> Reserved</span>
+        <span class="badge bg-danger fs-6 p-2"><i class="bi bi-x-circle me-1"></i> Booked</span>
+    </div>
+
+    <!-- Serial Room Grid Boxes -->
+    <div class="row g-3">
+        {% for item in room_numbers_list %}
+        <div class="col-6 col-md-3 col-lg-2">
+            {% if item.status == 'Available' %}
+                <a href="{% url 'management:add_room_to_booking_cart' item.obj.id %}?check_in={{ check_in }}&check_out={{ check_out }}" class="text-decoration-none">
+                    <div class="card text-white bg-success text-center p-3 shadow-sm h-100 hover-shadow border-0" style="cursor: pointer;">
+                        <h4 class="fw-bold mb-1">{{ item.obj.room_number }}</h4>
+                        <small class="d-block text-light">{{ item.obj.room.room_type }}</small>
+                        <small class="fw-bold mt-2 d-block">Tk. {{ item.obj.room.price }}</small>
+                        <span class="badge bg-light text-success mt-2">Available</span>
+                    </div>
+                </a>
+            {% elif item.status == 'Reserved' %}
+                <div class="card text-dark bg-warning text-center p-3 shadow-sm h-100 border-0 opacity-75">
+                    <h4 class="fw-bold mb-1">#{{ item.obj.room_number }}</h4>
+                    <small class="d-block">{{ item.obj.room.room_type }}</small>
+                    <span class="badge bg-dark text-warning mt-3">Reserved</span>
+                </div>
+            {% else %}
+                <div class="card text-white bg-danger text-center p-3 shadow-sm h-100 border-0 opacity-75">
+                    <h4 class="fw-bold mb-1">#{{ item.obj.room_number }}</h4>
+                    <small class="d-block text-light">{{ item.obj.room.room_type }}</small>
+                    <span class="badge bg-light text-danger mt-3">Booked</span>
+                </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-4 text-muted fs-5">কোনো রুম পাওয়া যায়নি।</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Calendar Script -->
+<script>
+    const checkInInput = document.getElementById('check_in');
+    const checkOutInput = document.getElementById('check_out');
+
+    checkInInput.addEventListener('change', function () {
+        const checkInDate = this.value;
+        if (checkInDate) {
+            checkOutInput.min = checkInDate;
+            if (checkOutInput.value && checkOutInput.value < checkInDate) {
+                checkOutInput.value = checkInDate;
+            }
+        }
+    });
+</script>
+<!-- Room type dropdown Script -->
+<script>
+document.getElementById('hotel-select').addEventListener('change', function() {
+    var hotelId = this.value;
+    var roomTypeSelect = document.getElementById('room-type-select');
+    
+    // Clear previous options
+    roomTypeSelect.innerHTML = '<option value="">-- All Room Types --</option>';
+    
+    if (hotelId) {
+        fetch(`/management/api/get-room-types/${hotelId}/`)
+            .then(response => response.json())
+            .then(data => {
+                data.room_types.forEach(function(type) {
+                    var option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    roomTypeSelect.appendChild(option);
+                });
+            });
+    }
+});
+</script>
+{% endblock %}

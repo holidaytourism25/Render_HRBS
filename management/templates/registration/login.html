@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block header_banner %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center my-5">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-body p-4 p-sm-5">
+                
+                <!-- Logo / Icon -->
+                <div class="text-center mb-4">
+                    <div class="bg-primary bg-gradient text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow" style="width: 70px; height: 70px;">
+                        <i class="bi bi-shield-lock-fill fs-1"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-1">Staff Portal</h3>
+                    <p class="text-muted small">Please enter your credentials to access management dashboard.</p>
+                </div>
+
+                <!-- Django Flash / Form Error Messages -->
+                {% if form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show text-center py-2 mb-3" role="alert">
+                        <small><i class="bi bi-exclamation-triangle-fill me-1"></i> Invalid username or password.</small>
+                    </div>
+                {% endif %}
+
+                <!-- Login Form -->
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" name="username" class="form-control rounded-3" id="id_username" placeholder="Username" required autocomplete="username">
+                        <label for="id_username"><i class="bi bi-person me-1"></i> Username</label>
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        <input type="password" name="password" class="form-control rounded-3" id="id_password" placeholder="Password" required autocomplete="current-password">
+                        <label for="id_password"><i class="bi bi-lock me-1"></i> Password</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold rounded-3 shadow-sm py-2">
+                        Sign In <i class="bi bi-box-arrow-in-right ms-1"></i>
+                    </button>
+                </form>
+
+                <!-- Footer Back Link -->
+                <div class="text-center mt-4 border-top pt-3">
+                    <a href="{% url 'rbs:hotel_list' %}" class="text-secondary small text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Main Website
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

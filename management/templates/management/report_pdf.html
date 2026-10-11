@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 12px; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .table th { background-color: #f2f2f2; }
+        .total-sec { margin-top: 20px; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>{{ booking.hotel.name }}</h2>
+        <p>Booking Report / Invoice</p>
+        <small>Date: {{ report_date|date:"d M, Y H:i A" }}</small>
+    </div>
+
+    <table width="100%">
+        <tr>
+            <td><strong>Booking ID:</strong> #{{ booking.booking_id }}</td>
+            <td><strong>Guest Name:</strong> {{ booking.guest_name }}</td>
+        </tr>
+        <tr>
+            <td><strong>Mobile:</strong> {{ booking.mobile }}</td>
+            <td><strong>Status:</strong> {{ booking.status }}</td>
+        </tr>
+        <tr>
+            <td><strong>Check-In:</strong> {{ booking.check_in|date:"d M, Y" }}</td>
+            <td><strong>Check-Out:</strong> {{ booking.check_out|date:"d M, Y" }}</td>
+        </tr>
+    </table>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Room Type</th>
+                <th>Room Number</th>
+                <th>Base Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ booking.rooms.first.room_type }}</td>
+                <td>{{ booking.assigned_room_numbers.first.room_number }}</td>
+                <td>Tk. {{ booking.base_price }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="total-sec">
+        <p><strong>Discount:</strong> Tk. {{ booking.discount_amount }}</p>
+        <p><strong>Paid Amount:</strong> Tk. {{ booking.paid_amount }}</p>
+        <h3><strong>Due Amount:</strong> Tk. {{ booking.due_amount }}</h3>
+    </div>
+</body>
+</html>
